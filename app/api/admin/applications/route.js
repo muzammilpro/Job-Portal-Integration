@@ -1,105 +1,100 @@
-// app/api/admin/applications/route.js
-
+import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongoose";
+import Job from "@/models/Job";
 import User from "@/models/User";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; // Your NextAuth route
 
-await connectDB();
-
-export async function GET(req) {
-  const session = await getServerSession(authOptions);
-
-  // Check if user is logged in and is admin
-  if (!session) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  const isAdmin = session.user.role === "admin" || session.user.email === "admin@example.com";
-  if (!isAdmin) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
+/**
+ * =========================
+ * GET → Fetch all applications
+ * =========================
+ */
+export async function GET() {
   try {
-    // Find all users who have at least one application
-    const usersWithApplications = await User.find({
-      "applications.0": { $exists: true },
-    })
-      .select("name email image applications resume")
-      .lean();
+    await connectDB();
 
+    // Fetch jobs with applications
+    const jobs = await Job.find({ "applications.0": { $exists: true } })
+      .populate("applications.userId", "name email image resume")
+      .sort({ createdAt: -1 });
+
+    // Flatten applications for admin UI
     const applications = [];
 
-    usersWithApplications.forEach((user) => {
-      (user.applications || []).forEach((app) => {
+    jobs.forEach((job) => {
+      job.applications.forEach((app) => {
+        if (!app.userId) return;
+
         applications.push({
-          _id: app._id?.toString() || `${user._id}-${app.jobTitle}-${Date.now()}`, // Unique ID
+          _id: app._id,
+          status: app.status,
+          appliedAt: app.appliedAt,
+
+          jobId: job._id,
+          jobTitle: job.title,
+
           applicant: {
-            name: user.name || "Unknown Applicant",
-            email: user.email,
-            image: user.image || "/default-avatar.png",
-            hasResume: !!user.resume?.data,
+            id: app.userId._id,
+            name: app.userId.name,
+            email: app.userId.email,
+            image: app.userId.image || null,
+            hasResume: !!app.userId.resume?.data,
           },
-          jobTitle: app.jobTitle || "Unnamed Position",
-          appliedAt: app.appliedAt || new Date(),
-          status: app.status || "pending",
         });
       });
     });
 
-    // Optional: Sort by newest first
-    applications.sort((a, b) => new Date(b.appliedAt) - new Date(a.appliedAt));
-
-    return Response.json(applications);
+    return NextResponse.json(applications);
   } catch (error) {
-    console.error("Error fetching applications:", error);
-    return new Response(JSON.stringify({ error: "Failed to fetch applications" }), {
-      status: 500,
-    });
+    console.error("Admin applications GET error:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch applications" },
+      { status: 500 }
+    );
   }
 }
 
+/**
+ * =========================
+ * PATCH → Update application status
+ * =========================
+ */
 export async function PATCH(req) {
-  const session = await getServerSession(authOptions);
-
-  if (!session || (session.user.role !== "admin" && session.user.email !== "admin@example.com")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-  }
-
   try {
+    await connectDB();
+
     const { applicationId, status } = await req.json();
 
     if (!applicationId || !status) {
-      return new Response(JSON.stringify({ error: "Missing applicationId or status" }), {
-        status: 400,
-      });
+      return NextResponse.json(
+        { message: "Missing fields" },
+        { status: 400 }
+      );
     }
 
-    // Validate status
-    const validStatuses = ["pending", "shortlisted", "interview", "rejected", "hired"];
-    if (!validStatuses.includes(status)) {
-      return new Response(JSON.stringify({ error: "Invalid status" }), { status: 400 });
-    }
-
-    // Update the nested application status using positional operator $
-    const result = await User.updateOne(
+    // Update embedded application status
+    const job = await Job.findOneAndUpdate(
       { "applications._id": applicationId },
-      { $set: { "applications.$.status": status } }
+      {
+        $set: {
+          "applications.$.status": status,
+        },
+      },
+      { new: true }
     );
 
-    if (result.matchedCount === 0) {
-      return new Response(JSON.stringify({ error: "Application not found" }), { status: 404 });
+    if (!job) {
+      return NextResponse.json(
+        { message: "Application not found" },
+        { status: 404 }
+      );
     }
 
-    return Response.json({ success: true, message: "Status updated successfully" });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error updating application status:", error);
-    return new Response(JSON.stringify({ error: "Failed to update status" }), { status: 500 });
+    console.error("Admin applications PATCH error:", error);
+    return NextResponse.json(
+      { message: "Failed to update status" },
+      { status: 500 }
+    );
   }
 }

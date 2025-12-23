@@ -1,121 +1,3 @@
-
-// "use client";
-
-// import { useSession, signOut } from "next-auth/react";
-// import { useEffect, useState } from "react";
-// import { useRouter } from "next/navigation";
-
-// export default function UserDashboard() {
-//   const { data: session, status } = useSession();
-//   const [jobs, setJobs] = useState([]);
-//   const router = useRouter();
-
-//   // 🔁 Redirect admin to admin dashboard
-//   useEffect(() => {
-//     if (status === "authenticated" && session?.user?.role === "admin") {
-//       router.push("/dashboard/admin"); // change path if needed
-//     }
-//   }, [session, status, router]);
-
-//   // Fetch jobs
-//   const fetchJobs = async () => {
-//     const res = await fetch("/api/jobs");
-//     const data = await res.json();
-//     setJobs(data);
-//   };
-
-//   useEffect(() => {
-//     if (status === "authenticated") {
-//       fetchJobs();
-//     }
-//   }, [status]);
-
-//   if (status === "loading") return <p>Loading...</p>;
-//   if (!session) return <p>Please sign in to see jobs.</p>;
-
-//   return (
-//     <div className="min-h-screen bg-gray-100 p-6">
-//       {/* Header */}
-//       <div className="flex justify-between items-center mb-6">
-//         <h1 className="text-2xl font-bold">User Dashboard</h1>
-//         <button
-//           onClick={() => signOut({ callbackUrl: "/" })}
-//           className="bg-red-500 text-white px-4 py-2 rounded"
-//         >
-//           Logout
-//         </button>
-//       </div>
-
-//       {/* Welcome */}
-//       <div className="bg-white p-4 rounded mb-6 shadow">
-//         <h2 className="text-lg font-semibold">
-//           Welcome, {session.user.name}
-//         </h2>
-//         <p className="text-gray-500">
-//           Browse available jobs and apply directly.
-//         </p>
-//       </div>
-
-//       {/* Jobs */}
-//       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-//         {jobs.map((job) => (
-//           <JobCard key={job._id} job={job} />
-//         ))}
-//       </div>
-//     </div>
-//   );
-// }
-
-// // Job Card Component
-// function JobCard({ job }) {
-//   const { data: session } = useSession();
-
-//   const handleApply = async () => {
-//     if (!session) return alert("Please login first");
-
-//     try {
-//       const res = await fetch("/api/applications", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           jobId: job._id,
-//           userId: session.user.id,
-//         }),
-//       });
-
-//       if (res.ok) {
-//         alert(`Successfully applied for ${job.title}`);
-//       } else {
-//         const data = await res.json();
-//         alert(data.message || "Failed to apply");
-//       }
-//     } catch (error) {
-//       console.error(error);
-//       alert("Something went wrong");
-//     }
-//   };
-
-//   return (
-//     <div className="bg-white shadow rounded p-4">
-//       <h3 className="text-xl font-bold">{job.title}</h3>
-//       <p className="text-gray-500">{job.company}</p>
-//       <p className="text-gray-500">{job.location}</p>
-//       {job.salary && <p className="text-gray-500">Salary: {job.salary}</p>}
-//       {job.description && <p className="mt-2">{job.description}</p>}
-//       <button
-//         onClick={handleApply}
-//         className="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-//       >
-//         Apply
-//       </button>
-//     </div>
-//   );
-// }
-
-
-
-
-
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
@@ -155,7 +37,12 @@ export default function UserDashboard() {
     fetchJobs();
   }, [status, session?.user?.email]);
 
-  if (status === "loading") return <p>Loading...</p>;
+  if (status === "loading") return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+    <div className="flex flex-col items-center gap-6">
+      <div className="w-20 h-20 border-4 border-t-indigo-600 border-r-purple-600 border-b-pink-600 border-l-transparent rounded-full animate-spin"></div>
+      <p className="text-indigo-700 text-xl font-medium">Loading Applications ...</p>
+    </div>
+  </div>;
 
   if (status === "unauthenticated" || session?.user?.role !== "user") {
     router.push("/signin");
@@ -175,7 +62,7 @@ export default function UserDashboard() {
               Jobs you have applied for with this account.
             </p>
           </div>
-          
+
         </div>
 
         {/* Welcome card */}
@@ -223,7 +110,7 @@ export default function UserDashboard() {
 
 
 function AppliedJobCard({ job, userEmail }) {
- 
+
   const myApp =
     job.applications?.find((a) => a.userEmail === userEmail) || null;
 
