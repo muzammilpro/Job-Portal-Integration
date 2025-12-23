@@ -37,12 +37,14 @@ export default function UserDashboard() {
     fetchJobs();
   }, [status, session?.user?.email]);
 
-  if (status === "loading") return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+  if (status === "loading")
+    return
+  (<div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
     <div className="flex flex-col items-center gap-6">
       <div className="w-20 h-20 border-4 border-t-indigo-600 border-r-purple-600 border-b-pink-600 border-l-transparent rounded-full animate-spin"></div>
       <p className="text-indigo-700 text-xl font-medium">Loading Applications ...</p>
     </div>
-  </div>;
+  </div>);
 
   if (status === "unauthenticated" || session?.user?.role !== "user") {
     router.push("/signin");
